@@ -2,6 +2,7 @@ const http = require('http');
 const { Command } = require('commander');
 const fs = require('fs').promises;
 const path = require('path');
+const superagent = require('superagent');
 
 // Використання Commander.js для обробки аргументів командного рядка
 const program = new Command();
@@ -25,9 +26,17 @@ const server = http.createServer(async (req, res) => {
             res.writeHead(200, { 'Content-Type': 'image/jpeg' });
             res.end(file);
         } catch (err) {
-            // Якщо файл не знайдено, повертаємо код 404
-            res.statusCode = 404;
-            res.end('Not Found');
+            // Якщо файл не знайдено у кеші, робимо запит на сервер http.cat
+            try {
+                const response = await superagent.get(`https://http.cat/${statusCode}`);
+                const image = response.body;
+                await fs.writeFile(fileName, image); // Зберігаємо зображення в кеш
+                res.writeHead(200, { 'Content-Type': 'image/jpeg' });
+                res.end(image);
+            } catch (error) {
+                res.statusCode = 404;
+                res.end('Not Found');
+            }
         }
     } else if (req.method === 'PUT') {
         // Обробка PUT-запиту для збереження нового зображення у кеші
